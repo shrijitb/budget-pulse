@@ -1,5 +1,5 @@
 #!/bin/bash
-# BudgetPulse installer for private repo
+# BudgetPulse installer — downloads from public releases repo (no auth required)
 # Downloads latest pre-built release without authentication
 
 set -e
@@ -23,7 +23,7 @@ cat << "EOF"
 EOF
 echo -e "${NC}"
 
-echo -e "${BLUE}One-Shot Installer (Private Repo)${NC}\n"
+echo -e "${BLUE}One-Shot Installer${NC}\n"
 
 # Detect OS
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
@@ -44,7 +44,7 @@ echo -e "${BLUE}Detected: $PLATFORM${NC}\n"
 
 # Get latest release
 echo -e "${YELLOW}Fetching latest release...${NC}"
-RELEASES_URL="https://api.github.com/repos/shrijitb/budget-pulse/releases/latest"
+RELEASES_URL="https://api.github.com/repos/shrijitb/budget-pulse-releases/releases/latest"
 RELEASE_JSON=$(curl -fsSL "$RELEASES_URL")
 
 ASSET_URL=$(echo "$RELEASE_JSON" | grep -o '"browser_download_url": "[^"]*'"$ASSET_PATTERN"'[^"]*"' | head -1 | cut -d'"' -f4)

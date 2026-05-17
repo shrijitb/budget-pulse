@@ -2,12 +2,12 @@
 setlocal enabledelayedexpansion
 
 echo.
-echo [*] BudgetPulse Installer ^(Private Repo^)
+echo [*] BudgetPulse Installer
 echo [*] Downloading latest release...
 echo.
 
 REM Download latest release info
-for /f "delims=" %%A in ('powershell -NoProfile -Command "iwr -Uri 'https://api.github.com/repos/shrijitb/budget-pulse/releases/latest' | Select-Object -ExpandProperty Content" 2^>nul') do set "RELEASE_JSON=%%A"
+for /f "delims=" %%A in ('powershell -NoProfile -Command "iwr -Uri 'https://api.github.com/repos/shrijitb/budget-pulse-releases/releases/latest' | Select-Object -ExpandProperty Content" 2^>nul') do set "RELEASE_JSON=%%A"
 
 REM Extract Windows exe URL
 for /f "delims=" %%A in ('powershell -NoProfile -Command "($RELEASE_JSON = '!RELEASE_JSON!') | ConvertFrom-Json | .assets | Where-Object {$_.name -match '\.exe$'} | Select-Object -First 1 -ExpandProperty browser_download_url" 2^>nul') do set "ASSET_URL=%%A"

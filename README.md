@@ -30,7 +30,7 @@ A cross-platform native desktop budgeting app built with Electron, React, and Vi
 
 ### One-shot installer (no authentication needed)
 
-Since the repo is private, download the latest pre-built release:
+Download and run the latest pre-built release (no GitHub account required):
 
 **macOS / Linux:**
 ```bash
@@ -91,3 +91,24 @@ Supports Chase (`MM/DD merchant amount`), Amex (`MM/DD/YYYY merchant $amount`), 
 | Streak (consecutive ritual weeks) | 10 pts |
 
 Tiers: **Elite** (90+) · **Strong** (75+) · **Steady** (60+) · **Building** (45+) · **Starting** (<45)
+
+## Maintainer: Setting up release publishing
+
+CI publishes release binaries to a separate public repo (`shrijitb/budget-pulse-releases`) so installers work without GitHub authentication.
+
+**One-time setup (already done if releases are working):**
+
+1. Create the public repo:
+   ```bash
+   gh repo create shrijitb/budget-pulse-releases --public --description "BudgetPulse release binaries"
+   ```
+
+2. Create a GitHub Personal Access Token (classic) with `public_repo` scope:
+   https://github.com/settings/tokens/new
+
+3. Add it as a secret named `RELEASES_PAT` on this private repo:
+   ```bash
+   gh secret set RELEASES_PAT --repo shrijitb/budget-pulse --body "ghp_..."
+   ```
+
+CI will then publish to both repos on every push to `main`. The public repo assets require no authentication to download.
