@@ -51,8 +51,14 @@ Key decisions logged in PROJECT.md Key Decisions table. Summary:
 
 None yet.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 260516-r2l | Public releases repo for auth-free one-shot install | 2026-05-17 | a1834f7 | [260516-r2l-public-releases-repo-for-auth-free-one-s](./quick/260516-r2l-public-releases-repo-for-auth-free-one-s/) |
+
 ## Session Continuity
 
-Last session: 2026-05-16
-Stopped at: Roadmap and state initialized; ready to begin Phase 1 planning
+Last session: 2026-05-17
+Stopped at: Quick task 260516-r2l complete — CI and install scripts updated for public releases repo; user needs to create repo + PAT secret then push
 Resume file: None
