@@ -28,6 +28,25 @@ A cross-platform native desktop budgeting app built with Electron, React, and Vi
 
 ## Install and run
 
+### One-shot installer (no GitHub account needed)
+
+**macOS / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/shrijitb/budget-pulse/main/install-universal.sh | bash
+```
+
+**Windows (PowerShell):**
+```powershell
+iex (irm https://raw.githubusercontent.com/shrijitb/budget-pulse/main/install-universal.sh | iex)
+```
+
+Or download and run the installer scripts from the repo:
+- **macOS/Linux:** `./install.sh`
+- **Windows:** `install.bat`
+- **Any OS:** `./install-universal.sh`
+
+### Manual installation
+
 ```bash
 git clone https://github.com/shrijitb/budget-pulse.git && cd budget-pulse && npm install && npm run dev
 ```
