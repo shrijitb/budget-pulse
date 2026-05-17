@@ -1,0 +1,30 @@
+appId: com.budgetpulse.app
+productName: BudgetPulse
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.*'
+  - '!{.eslintignore,.eslintrc.*,.prettierrc.*}'
+  - '!{tsconfig.json,tsconfig.*.json}'
+win:
+  executableName: BudgetPulse
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+dmg:
+  artifactName: ${name}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: shrijit.bannerjee@gmail.com
+  category: Office
+appImage:
+  artifactName: ${name}-${version}.${ext}
+npmRebuild: false
