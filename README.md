@@ -26,11 +26,10 @@ A cross-platform native desktop budgeting app built with Electron, React, and Vi
 | Folder watching | chokidar 5 (pure JS, no native addons) |
 | Packaging | electron-builder (.exe / .dmg / .AppImage / .deb) |
 
-## Getting started
+## Install and run
 
 ```bash
-npm install
-npm run dev
+git clone https://github.com/shrijitb/budget-pulse.git && cd budget-pulse && npm install && npm run dev
 ```
 
 > **Note for VS Code users:** VS Code sets `ELECTRON_RUN_AS_NODE=1` in child processes. The `dev` script already handles this with `env -u ELECTRON_RUN_AS_NODE`.
