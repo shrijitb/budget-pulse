@@ -1,16 +1,72 @@
-# React + Vite
+# BudgetPulse
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A cross-platform native desktop budgeting app built with Electron, React, and Vite. Track weekly spending, set savings goals, and import credit card statements automatically — no browser, no backend, no cloud.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Weekly score (0–100)** — composite score across savings rate, category discipline, transaction logging, and streak
+- **6 spending categories** — Food, Transport, Entertainment, Shopping, Big Purchases, Savings, each with a configurable weekly budget
+- **Guided weekly ritual** — 5-step review flow that locks in your score and advances the week
+- **Savings goals** — set a target amount and date; the app calculates how much you need to save per week to hit it on time
+- **PDF statement import** — drag-drop a Chase, Amex, Citi, or generic bank PDF and transactions are parsed and auto-categorized
+- **Folder watcher** — point the app at a downloads folder; any PDF that lands there is automatically parsed and imported
+- **Native OS notifications** — get alerted when a spending category goes over budget
+- **History charts** — weekly score and savings trends via Recharts line charts
+- **100% local** — all data in `localStorage`, nothing leaves your machine
 
-## React Compiler
+## Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| Layer | Choice |
+|---|---|
+| Shell | Electron 42 (bundles Chromium — zero system deps on any OS) |
+| Build | electron-vite 5 + Vite 8 |
+| UI | React 19 + Tailwind v4 + Framer Motion |
+| Charts | Recharts |
+| PDF parsing | pdfjs-dist (client-side, no server) |
+| Folder watching | chokidar 5 (pure JS, no native addons) |
+| Packaging | electron-builder (.exe / .dmg / .AppImage / .deb) |
 
-## Expanding the ESLint configuration
+## Getting started
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+npm run dev
+```
+
+> **Note for VS Code users:** VS Code sets `ELECTRON_RUN_AS_NODE=1` in child processes. The `dev` script already handles this with `env -u ELECTRON_RUN_AS_NODE`.
+
+## Building distributables
+
+```bash
+npm run build:linux   # AppImage + .deb
+npm run build:mac     # .dmg
+npm run build:win     # NSIS installer
+```
+
+Output lands in `dist/`.
+
+## Project structure
+
+```
+src/
+  main/         Electron main process (IPC, folder watcher, notifications)
+  preload/      contextBridge API surface exposed to renderer
+  components/   React UI components
+  store/        useStore — React Context + useReducer + localStorage
+  utils/        scoring, categorizer, pdfParser, recommendations
+```
+
+## PDF import
+
+Supports Chase (`MM/DD merchant amount`), Amex (`MM/DD/YYYY merchant $amount`), and a generic fallback pattern. Parsed transactions go through a review screen where you can toggle and re-categorize before importing.
+
+## Scoring algorithm
+
+| Component | Weight |
+|---|---|
+| Savings rate vs. income | 40 pts |
+| Category discipline (under budget) | 30 pts |
+| Transaction logging (≥5 txs) | 20 pts |
+| Streak (consecutive ritual weeks) | 10 pts |
+
+Tiers: **Elite** (90+) · **Strong** (75+) · **Steady** (60+) · **Building** (45+) · **Starting** (<45)
