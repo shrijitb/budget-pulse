@@ -22,7 +22,11 @@ Three phases deliver a local-first desktop budgeting app: first, the Electron sh
   3. Weekly ritual completes all 5 steps and produces a score visible on the dashboard immediately after submission
   4. Goal cards, history charts, and PDF import all function inside the Electron window identically to the web build
   5. Closing and reopening the app shows the same state — localStorage data survives restarts
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 01-01-PLAN.md — Install electron-vite, create main process + preload + config, fix pdfjs worker path
+- [ ] 01-02-PLAN.md — Goal weekly savings calc, overspending notifications, folder watcher UI + PDF IPC path
+- [ ] 01-03-PLAN.md — Build verification and human end-to-end acceptance test
 **UI hint**: yes
 
 ### Phase 2: Native Electron Integration
@@ -53,6 +57,6 @@ Three phases deliver a local-first desktop budgeting app: first, the Electron sh
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Electron Shell & Web UI Integration | 0/? | Not started | - |
+| 1. Electron Shell & Web UI Integration | 0/3 | Not started | - |
 | 2. Native Electron Integration | 0/? | Not started | - |
 | 3. Packaging & Distribution | 0/? | Not started | - |
