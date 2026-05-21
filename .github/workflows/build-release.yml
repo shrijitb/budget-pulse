@@ -83,17 +83,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Delete old public release
-        env:
-          GH_TOKEN: ${{ secrets.RELEASES_PAT }}
-        run: |
-          gh release delete latest --repo shrijitb/budget-pulse-releases --yes || true
-
-      - name: Create public release
-        env:
-          GH_TOKEN: ${{ secrets.RELEASES_PAT }}
-        run: |
-          gh release create latest ./release-assets/* \
-            --repo shrijitb/budget-pulse-releases \
-            --title "Latest Build" \
-            --notes "Built from commit ${{ github.sha }}"
