@@ -7,6 +7,8 @@ const CATEGORIES = Object.entries(CATEGORY_META).map(([id, meta]) => ({ id, ...m
 
 export default function AddTransaction({ onClose }) {
   const { state, dispatch } = useStore()
+  const weekTxs = useCurrentWeekTxs(state)
+  const weekTotals = useCategoryTotals(weekTxs)
   const [merchant, setMerchant] = useState('')
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('food')
@@ -16,6 +18,7 @@ export default function AddTransaction({ onClose }) {
     e.preventDefault()
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) return
+
     const newTx = {
       id: `tx_${Date.now()}`,
       merchant: merchant.trim() || 'Manual entry',
@@ -24,24 +27,29 @@ export default function AddTransaction({ onClose }) {
       date: new Date(date).toISOString(),
       source: 'manual',
     }
+
     dispatch({ type: 'ADD_TRANSACTION', tx: newTx })
 
-    const weekTxs = useCurrentWeekTxs(state)
     const weekStart = new Date(state.currentWeekStart)
     const weekEnd = new Date(weekStart)
     weekEnd.setDate(weekEnd.getDate() + 7)
     const txDate = new Date(newTx.date)
     const inCurrentWeek = txDate >= weekStart && txDate < weekEnd
-    const totals = useCategoryTotals(inCurrentWeek ? [...weekTxs, newTx] : weekTxs)
+    const projectedTotal = weekTotals[category] || 0
+    const nextTotal = projectedTotal + amt
 
-    if (category !== 'savings' && totals[category] > state.budgets[category]) {
+    if (inCurrentWeek && category !== 'savings' && nextTotal > state.budgets[category]) {
       const meta = CATEGORY_META[category]
       window.electronAPI?.showNotification(
         `Over budget: ${meta?.label || category}`,
-        `$${totals[category].toFixed(0)} spent vs $${state.budgets[category]} budget this week`
+        `$${nextTotal.toFixed(0)} spent vs $${state.budgets[category]} budget this week`
       )
     }
 
+    setMerchant('')
+    setAmount('')
+    setCategory('food')
+    setDate(new Date().toISOString().slice(0, 10))
     onClose()
   }
 

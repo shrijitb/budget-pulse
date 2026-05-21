@@ -1,16 +1,29 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useStore, useCurrentWeekTxs, useCategoryTotals } from '../store/useStore'
 import { calcWeeklyScore, getScoreInsight } from '../utils/scoring'
 import ScoreRing from './ScoreRing'
 import CategoryBar from './CategoryBar'
 import AddTransaction from './AddTransaction'
+import PDFImporter from './PDFImporter'
 import { CATEGORY_META } from '../utils/categorizer'
 
+const spreadsheetColumns = [
+  { label: 'Date', key: 'date' },
+  { label: 'Merchant', key: 'merchant' },
+  { label: 'Category', key: 'category' },
+  { label: 'Amount', key: 'amount' },
+]
+
 export default function Dashboard({ onNavigate }) {
-  const { state } = useStore()
+  const { state, dispatch } = useStore()
   const [showAdd, setShowAdd] = useState(false)
-  const [showTxs, setShowTxs] = useState(false)
+  const [showSpreadsheet, setShowSpreadsheet] = useState(false)
+  const [showPDF, setShowPDF] = useState(false)
+  const [quickMerchant, setQuickMerchant] = useState('')
+  const [quickAmount, setQuickAmount] = useState('')
+  const [quickCategory, setQuickCategory] = useState('food')
+  const [quickDate, setQuickDate] = useState(new Date().toISOString().slice(0, 10))
 
   const weekTxs = useCurrentWeekTxs(state)
   const categoryTotals = useCategoryTotals(weekTxs)
@@ -33,148 +46,288 @@ export default function Dashboard({ onNavigate }) {
     .filter(([k]) => k !== 'savings')
     .reduce((s, [, v]) => s + v, 0)
   const remaining = state.weeklyIncome - totalSpent
-
   const topGoal = state.goals[0]
 
+  function handleQuickAdd(e) {
+    e.preventDefault()
+    const amt = parseFloat(quickAmount)
+    if (!amt || amt <= 0) return
+
+    const newTx = {
+      id: `tx_${Date.now()}`,
+      merchant: quickMerchant.trim() || 'Quick entry',
+      amount: amt,
+      category: quickCategory,
+      date: new Date(quickDate).toISOString(),
+      source: 'manual',
+    }
+
+    const weekStart = new Date(state.currentWeekStart)
+    const weekEnd = new Date(weekStart)
+    weekEnd.setDate(weekEnd.getDate() + 7)
+    const txDate = new Date(newTx.date)
+    const inCurrentWeek = txDate >= weekStart && txDate < weekEnd
+    const nextTotal = (categoryTotals[quickCategory] || 0) + amt
+
+    dispatch({ type: 'ADD_TRANSACTION', tx: newTx })
+
+    if (inCurrentWeek && quickCategory !== 'savings' && nextTotal > state.budgets[quickCategory]) {
+      const meta = CATEGORY_META[quickCategory]
+      window.electronAPI?.showNotification(
+        `Over budget: ${meta?.label || quickCategory}`,
+        `$${nextTotal.toFixed(0)} spent vs $${state.budgets[quickCategory]} budget this week`
+      )
+    }
+
+    setQuickMerchant('')
+    setQuickAmount('')
+    setQuickCategory('food')
+    setQuickDate(new Date().toISOString().slice(0, 10))
+  }
+
+  function handleDeleteTx(id) {
+    dispatch({ type: 'REMOVE_TRANSACTION', id })
+  }
+
   return (
-    <div className="flex-1 overflow-y-auto pb-4">
-      {/* Header */}
-      <div className="px-5 pt-8 pb-4 flex items-center justify-between">
-        <div>
-          <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-1">This Week</p>
-          <h1 className="text-2xl font-bold text-[var(--color-text-bright)]">BudgetPulse</h1>
-        </div>
-        <div className="text-right">
-          {state.streak > 0 && (
-            <div className="flex items-center gap-1 text-sm font-medium text-[var(--color-amber)]">
-              🔥 {state.streak} week{state.streak !== 1 ? 's' : ''}
-            </div>
-          )}
-          <p className="text-xs text-[var(--color-text-muted)]">{weekTxs.length} transactions</p>
-        </div>
-      </div>
-
-      {/* Score ring */}
-      <div className="flex justify-center py-4">
-        <ScoreRing score={scoreData.total} />
-      </div>
-
-      {/* Remaining budget */}
-      <div className="mx-5 mb-4 glass rounded-xl px-5 py-4 flex justify-between items-center">
-        <div>
-          <p className="text-xs text-[var(--color-text-muted)] mb-1">Budget remaining</p>
-          <p
-            className="text-2xl font-bold"
-            style={{ color: remaining >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}
-          >
-            ${Math.abs(remaining).toFixed(0)}
-            <span className="text-sm font-normal text-[var(--color-text-muted)] ml-1">
-              {remaining >= 0 ? 'left' : 'over'}
-            </span>
-          </p>
-        </div>
-        <button
-          onClick={() => setShowAdd(true)}
-          className="btn-primary px-5 py-2.5 text-sm"
-        >
-          + Add
-        </button>
-      </div>
-
-      {/* Insight */}
-      <div className="mx-5 mb-5 rounded-xl px-4 py-3" style={{ background: 'var(--color-accent-glow)', border: '1px solid rgba(124,106,247,0.3)' }}>
-        <p className="text-sm text-[var(--color-accent-bright)]">💡 {insight}</p>
-      </div>
-
-      {/* Categories */}
-      <div className="mx-5 glass rounded-xl px-5 py-4 space-y-4 mb-4">
-        <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">Categories</p>
-        {Object.keys(state.budgets)
-          .filter(k => k !== 'savings')
-          .map(cat => (
-            <CategoryBar
-              key={cat}
-              category={cat}
-              spent={categoryTotals[cat] || 0}
-              budget={state.budgets[cat]}
-            />
-          ))}
-      </div>
-
-      {/* Savings bar */}
-      <div className="mx-5 glass rounded-xl px-5 py-4 mb-4">
-        <CategoryBar
-          category="savings"
-          spent={categoryTotals.savings || 0}
-          budget={state.budgets.savings}
-        />
-      </div>
-
-      {/* Top goal */}
-      {topGoal && (
-        <button
-          onClick={() => onNavigate('goals')}
-          className="mx-5 glass rounded-xl px-5 py-4 w-[calc(100%-40px)] text-left mb-4"
-        >
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">Top Goal</span>
-            <span className="text-xs text-[var(--color-accent)]">See all →</span>
+    <div className="flex-1 overflow-y-auto pb-6">
+      <div className="px-5 pt-8 pb-4 md:px-10">
+        <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+          <div>
+            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-1">This week</p>
+            <h1 className="text-3xl font-bold text-[var(--color-text-bright)]">BudgetPulse</h1>
+            <p className="text-sm text-[var(--color-text-muted)] max-w-xl mt-2">
+              Desktop-ready finance tracking with quick entry and goals that feel like a game.
+            </p>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">{topGoal.emoji || '🎯'}</span>
-            <div className="flex-1">
-              <p className="font-semibold text-[var(--color-text-bright)] text-sm">{topGoal.name}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="flex-1 h-1.5 rounded-full" style={{ background: 'var(--color-surface-3)' }}>
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ background: 'var(--color-green)' }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(100, ((topGoal.saved || 0) / topGoal.target) * 100)}%` }}
-                    transition={{ duration: 0.8 }}
-                  />
-                </div>
-                <span className="text-xs text-[var(--color-text-muted)]">
-                  ${(topGoal.saved || 0).toFixed(0)} / ${topGoal.target}
-                </span>
-              </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="glass rounded-2xl p-4 text-sm">
+              <p className="text-[var(--color-text-muted)] uppercase tracking-widest mb-2">Score tier</p>
+              <p className="font-semibold text-[var(--color-text-bright)]">{scoreData.tier.emoji} {scoreData.tier.label}</p>
+            </div>
+            <div className="glass rounded-2xl p-4 text-sm">
+              <p className="text-[var(--color-text-muted)] uppercase tracking-widest mb-2">Streak</p>
+              <p className="font-semibold text-[var(--color-amber)]">{state.streak || 0} weeks</p>
             </div>
           </div>
-        </button>
-      )}
+        </div>
+      </div>
 
-      {/* Recent transactions */}
-      {weekTxs.length > 0 && (
-        <div className="mx-5 glass rounded-xl px-5 py-4">
-          <button
-            className="w-full flex items-center justify-between mb-3"
-            onClick={() => setShowTxs(v => !v)}
-          >
-            <span className="text-xs text-[var(--color-text-muted)] uppercase tracking-wider">Recent transactions</span>
-            <span className="text-xs text-[var(--color-accent)]">{showTxs ? '↑ hide' : '↓ show'}</span>
-          </button>
-          <AnimatePresence>
-            {showTxs && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden space-y-2"
+      <div className="mx-5 grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+        <div className="glass rounded-3xl p-6 space-y-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Rapid add</p>
+              <h2 className="text-xl font-bold text-[var(--color-text-bright)]">Enter money fast</h2>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setShowSpreadsheet(v => !v)}
+                className="btn-secondary text-sm"
               >
-                {weekTxs.slice(0, 10).map(tx => (
-                  <TxRow key={tx.id} tx={tx} />
+                {showSpreadsheet ? 'Hide table' : 'Show spreadsheet'}
+              </button>
+              <button
+                onClick={() => setShowPDF(true)}
+                className="btn-primary text-sm"
+              >
+                Import PDF
+              </button>
+            </div>
+          </div>
+
+          <form onSubmit={handleQuickAdd} className="grid gap-3 md:grid-cols-[1.1fr_0.9fr_0.8fr]">
+            <input
+              type="text"
+              placeholder="Merchant / bill name"
+              value={quickMerchant}
+              onChange={e => setQuickMerchant(e.target.value)}
+              className="input-field w-full"
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Amount"
+              value={quickAmount}
+              onChange={e => setQuickAmount(e.target.value)}
+              className="input-field w-full"
+            />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <select
+                value={quickCategory}
+                onChange={e => setQuickCategory(e.target.value)}
+                className="input-field w-full"
+              >
+                {Object.entries(CATEGORY_META).map(([key, meta]) => (
+                  <option key={key} value={key}>{meta.icon} {meta.label}</option>
                 ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </select>
+              <input
+                type="date"
+                value={quickDate}
+                onChange={e => setQuickDate(e.target.value)}
+                className="input-field w-full"
+              />
+            </div>
+            <button type="submit" className="btn-primary w-full md:col-span-3">
+              Add transaction
+            </button>
+          </form>
+
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(CATEGORY_META).map(([key, meta]) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setQuickCategory(key)}
+                className="rounded-full px-3 py-2 text-sm font-semibold transition"
+                style={{
+                  background: quickCategory === key ? `${meta.color}24` : 'var(--color-surface-3)',
+                  color: quickCategory === key ? meta.color : 'var(--color-text-muted)',
+                }}
+              >
+                {meta.icon} {meta.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="glass rounded-3xl p-6 space-y-4">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest">Game goals</p>
+              <p className="text-lg font-semibold text-[var(--color-text-bright)]">Keep your streak alive</p>
+            </div>
+            <div className="rounded-2xl bg-[var(--color-surface-3)] px-3 py-2 text-sm font-medium text-[var(--color-green)]">
+              {scoreData.total} XP
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="rounded-2xl p-4 bg-[var(--color-surface-3)]">
+              <p className="text-sm text-[var(--color-text-muted)]">Weekly challenge</p>
+              <p className="mt-2 text-sm text-[var(--color-text-bright)]">Add at least 5 transactions and stay under category budgets to earn bonus streak points.</p>
+            </div>
+            <div className="rounded-2xl p-4 bg-[var(--color-surface-3)]">
+              <p className="text-sm text-[var(--color-text-muted)]">Next badge</p>
+              <p className="mt-2 text-sm text-[var(--color-text-bright)]">Maintain a 3-week streak to unlock the "Momentum" badge.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mx-5 mt-4 grid gap-4 xl:grid-cols-[1fr_0.9fr]">
+        <div className="glass rounded-3xl px-6 py-5">
+          <div className="flex items-center justify-between mb-4 gap-4">
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Budget remaining</p>
+              <p className="text-3xl font-bold" style={{ color: remaining >= 0 ? 'var(--color-green)' : 'var(--color-red)' }}>
+                ${Math.abs(remaining).toFixed(0)}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowAdd(true)}
+              className="btn-primary px-5 py-2.5 text-sm"
+            >
+              + Add
+            </button>
+          </div>
+          <div className="grid gap-4">
+            {Object.keys(state.budgets)
+              .filter(k => k !== 'savings')
+              .map(cat => (
+                <CategoryBar
+                  key={cat}
+                  category={cat}
+                  spent={categoryTotals[cat] || 0}
+                  budget={state.budgets[cat]}
+                />
+              ))}
+          </div>
+        </div>
+
+        <div className="glass rounded-3xl px-6 py-5">
+          <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-3">Savings goal</p>
+          <CategoryBar
+            category="savings"
+            spent={categoryTotals.savings || 0}
+            budget={state.budgets.savings}
+          />
+          {topGoal && (
+            <button
+              onClick={() => onNavigate('goals')}
+              className="mt-5 w-full btn-secondary text-sm"
+            >
+              View goals
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showSpreadsheet && (
+        <div className="mx-5 mt-4 glass rounded-3xl px-6 py-5 overflow-x-auto">
+          <div className="flex items-center justify-between mb-4 gap-4">
+            <div>
+              <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-1">Spreadsheet</p>
+              <p className="text-sm text-[var(--color-text-muted)]">Quick review and bulk deletion for laptop use.</p>
+            </div>
+            <button
+              onClick={() => setShowSpreadsheet(false)}
+              className="btn-secondary text-sm"
+            >
+              Close sheet
+            </button>
+          </div>
+          <table className="min-w-full border-separate border-spacing-0 text-left text-sm">
+            <thead>
+              <tr className="text-[var(--color-text-muted)]">
+                {spreadsheetColumns.map(column => (
+                  <th key={column.key} className="pb-3 pr-4 font-normal uppercase tracking-[0.24em] text-[0.7rem]">
+                    {column.label}
+                  </th>
+                ))}
+                <th className="pb-3 pr-4" />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--color-border)]">
+              {weekTxs.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-[var(--color-text-muted)]">
+                    No transactions yet — add one above or import a PDF statement.
+                  </td>
+                </tr>
+              ) : (
+                weekTxs.map(tx => (
+                  <tr key={tx.id} className="hover:bg-[rgba(124,106,247,0.08)] transition-colors">
+                    <td className="py-3 pr-4">{new Date(tx.date).toLocaleDateString()}</td>
+                    <td className="py-3 pr-4">{tx.merchant || 'Manual entry'}</td>
+                    <td className="py-3 pr-4 text-[var(--color-text-muted)]">{CATEGORY_META[tx.category]?.icon || '💸'} {CATEGORY_META[tx.category]?.label || tx.category}</td>
+                    <td className="py-3 pr-4 font-semibold text-[var(--color-text-bright)]">${tx.amount.toFixed(2)}</td>
+                    <td className="py-3 pr-4">
+                      <button
+                        onClick={() => handleDeleteTx(tx.id)}
+                        className="text-xs text-[var(--color-red)] hover:underline"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* Folder watcher */}
       {window.electronAPI && <FolderWatcherRow />}
 
       <AnimatePresence>
         {showAdd && <AddTransaction onClose={() => setShowAdd(false)} />}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showPDF && <PDFImporter onClose={() => setShowPDF(false)} />}
       </AnimatePresence>
     </div>
   )
@@ -190,7 +343,7 @@ function FolderWatcherRow() {
     if (folder) {
       window.electronAPI.watchFolder(folder).then(ok => setWatching(ok))
     }
-  }, [])
+  }, [folder])
 
   async function pickFolder() {
     const path = await window.electronAPI.pickFolder()

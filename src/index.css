@@ -1,22 +1,22 @@
 @import "tailwindcss";
 
 @theme {
-  --color-surface: #0f0f13;
-  --color-surface-2: #18181f;
-  --color-surface-3: #22222c;
-  --color-border: #2a2a36;
-  --color-text-muted: #6b6b80;
-  --color-text: #c8c8d8;
-  --color-text-bright: #f0f0f8;
-  --color-accent: #7c6af7;
-  --color-accent-bright: #9d8fff;
-  --color-accent-glow: rgba(124, 106, 247, 0.25);
-  --color-green: #22c55e;
-  --color-green-dim: rgba(34, 197, 94, 0.15);
-  --color-red: #f43f5e;
-  --color-red-dim: rgba(244, 63, 94, 0.15);
-  --color-amber: #f59e0b;
-  --color-amber-dim: rgba(245, 158, 11, 0.15);
+  --color-surface: #11171d;
+  --color-surface-2: #1d262d;
+  --color-surface-3: #28333f;
+  --color-border: #3b4a56;
+  --color-text-muted: #8a97a2;
+  --color-text: #d1d9df;
+  --color-text-bright: #f5f7f8;
+  --color-accent: #c9a45b;
+  --color-accent-bright: #f3d478;
+  --color-accent-glow: rgba(243, 212, 120, 0.18);
+  --color-green: #80b38a;
+  --color-green-dim: rgba(128, 179, 138, 0.18);
+  --color-red: #e27d60;
+  --color-red-dim: rgba(226, 125, 96, 0.18);
+  --color-amber: #d6a85a;
+  --color-amber-dim: rgba(214, 168, 90, 0.18);
   --color-food: #fb923c;
   --color-transport: #38bdf8;
   --color-entertainment: #c084fc;
@@ -55,10 +55,29 @@
   #root {
     display: flex;
     flex-direction: column;
-    max-width: 480px;
+    max-width: 1200px;
+    width: 100%;
     margin: 0 auto;
     min-height: 100svh;
     position: relative;
+    padding: 0 16px;
+  }
+
+  @media (min-width: 768px) {
+    #root {
+      padding: 0 24px;
+    }
+  }
+
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+
+  th, td {
+    padding: 0.875rem 0.75rem;
+    white-space: nowrap;
   }
 
   ::-webkit-scrollbar { width: 4px; }
@@ -75,7 +94,7 @@
     border-radius: 12px;
     font-weight: 600;
     font-size: 0.9375rem;
-    background: linear-gradient(135deg, var(--color-accent), #5b4fd4);
+    background: linear-gradient(135deg, var(--color-accent), #b48b57);
     color: #fff;
     border: none;
     cursor: pointer;

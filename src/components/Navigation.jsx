@@ -10,7 +10,7 @@ const TABS = [
 export default function Navigation({ active, onChange }) {
   return (
     <nav
-      className="flex items-center justify-around px-2 py-3 border-t"
+      className="flex items-center justify-around px-2 py-3 border-t md:flex-col md:justify-start md:h-full md:w-full md:border-t-0 md:border-r"
       style={{
         background: 'rgba(15,15,19,0.95)',
         borderColor: 'var(--color-border)',
@@ -23,12 +23,12 @@ export default function Navigation({ active, onChange }) {
           <button
             key={tab.id}
             onClick={() => onChange(tab.id)}
-            className="flex flex-col items-center gap-1 px-4 py-1 relative"
+            className="flex flex-col items-center gap-1 px-4 py-3 relative md:flex-row md:justify-start md:px-6 md:w-full"
           >
             {isActive && (
               <motion.div
                 layoutId="nav-pill"
-                className="absolute inset-0 rounded-xl"
+                className="absolute inset-0 rounded-2xl"
                 style={{ background: 'var(--color-accent-glow)' }}
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
@@ -37,7 +37,7 @@ export default function Navigation({ active, onChange }) {
               {tab.icon}
             </span>
             <span
-              className="text-xs font-medium relative z-10"
+              className="text-xs font-medium relative z-10 md:text-sm"
               style={{ color: isActive ? 'var(--color-accent-bright)' : 'var(--color-text-muted)' }}
             >
               {tab.label}

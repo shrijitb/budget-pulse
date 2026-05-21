@@ -22,22 +22,30 @@ function AppShell() {
   }
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex-1 overflow-hidden relative">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={tab}
-            className="absolute inset-0 overflow-y-auto"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
-            transition={{ duration: 0.22 }}
-          >
-            {screens[tab]}
-          </motion.div>
-        </AnimatePresence>
+    <div className="flex h-full min-h-screen bg-[var(--color-surface)]">
+      <div className="hidden md:block md:w-64">
+        <Navigation active={tab} onChange={setTab} />
       </div>
-      <Navigation active={tab} onChange={setTab} />
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 overflow-hidden relative">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={tab}
+              className="absolute inset-0 overflow-y-auto"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.22 }}
+            >
+              {screens[tab]}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+        <div className="md:hidden">
+          <Navigation active={tab} onChange={setTab} />
+        </div>
+      </div>
     </div>
   )
 }
