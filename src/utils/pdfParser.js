@@ -5,7 +5,10 @@ let pdfjsLib = null
 async function getPdfjs() {
   if (pdfjsLib) return pdfjsLib
   const mod = await import('pdfjs-dist')
-  mod.GlobalWorkerOptions.workerSrc = './pdf.worker.min.mjs'
+  // Resolve worker URL relative to the loaded document so it works in both
+  // dev (localhost) and production Electron (file://...asar/out/renderer/)
+  const workerUrl = new URL('./pdf.worker.min.mjs', window.location.href).toString()
+  mod.GlobalWorkerOptions.workerSrc = workerUrl
   pdfjsLib = mod
   return mod
 }

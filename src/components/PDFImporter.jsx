@@ -31,10 +31,11 @@ export default function PDFImporter({ onClose }) {
         setSelected(new Set(parsed.map(t => t.id)))
         setPhase('review')
       } catch (e) {
+        console.error('[PDFImporter] auto-detect parse error:', e)
         if (e.message === 'IMAGE_BASED') {
           setError('This PDF appears to be image-based (scanned). Please download your statement from your bank\'s website — choose the digital/text PDF option, not a scanned copy.')
         } else {
-          setError('Could not parse the auto-detected PDF.')
+          setError(`Could not parse auto-detected PDF: ${e.message || 'unknown error'}`)
         }
         setPhase('drop')
       }
@@ -60,10 +61,11 @@ export default function PDFImporter({ onClose }) {
       setSelected(new Set(parsed.map(t => t.id)))
       setPhase('review')
     } catch (e) {
+      console.error('[PDFImporter] parse error:', e)
       if (e.message === 'IMAGE_BASED') {
         setError('This PDF is image-based (scanned). Download your statement from your bank\'s website as a digital PDF — Bank of America: Accounts → Statements & Documents → choose PDF.')
       } else {
-        setError('Could not parse this PDF. Try a different statement format.')
+        setError(`Could not parse this PDF: ${e.message || 'unknown error'}. Try a different statement format.`)
       }
       setPhase('drop')
     }
