@@ -1,22 +1,10 @@
 import { categorize } from './categorizer.js'
 
-let pdfjsLib = null
-
-async function getPdfjs() {
-  if (pdfjsLib) return pdfjsLib
-  const mod = await import('pdfjs-dist')
-  // Resolve worker URL relative to the loaded document so it works in both
-  // dev (localhost) and production Electron (file://...asar/out/renderer/)
-  const workerUrl = new URL('./pdf.worker.min.mjs', window.location.href).toString()
-  mod.GlobalWorkerOptions.workerSrc = workerUrl
-  pdfjsLib = mod
-  return mod
-}
-
 // Reconstruct reading-order text from column-based PDFs (bank statements).
 // Groups items by Y position, then sorts within each row by X — critical for
 // tabular layouts where pdfjs returns items in column order instead of row order.
-async function extractText(pdf) {
+// Exported so the main process can reuse this with its own pdfjs instance.
+export async function extractText(pdf) {
   let fullText = ''
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i)
@@ -40,25 +28,11 @@ async function extractText(pdf) {
   return fullText
 }
 
+// Browser-side entry point: delegates all parsing to the main process via IPC.
+// The main process runs pdfjs without a web worker, which is dramatically faster.
 export async function parsePDF(file) {
-  const pdfjs = await getPdfjs()
   const buffer = await file.arrayBuffer()
-  const pdf = await pdfjs.getDocument({ data: buffer }).promise
-  const text = await extractText(pdf)
-  if (text.trim().length < 80) {
-    throw new Error('IMAGE_BASED')
-  }
-  return parseTransactions(text)
-}
-
-export async function handleBuffer(buffer) {
-  const pdfjs = await getPdfjs()
-  const pdf = await pdfjs.getDocument({ data: buffer }).promise
-  const text = await extractText(pdf)
-  if (text.trim().length < 80) {
-    throw new Error('IMAGE_BASED')
-  }
-  return parseTransactions(text)
+  return window.electronAPI.parsePdf(buffer)
 }
 
 // Anchored patterns applied per-line — no backtracking possible.
@@ -129,7 +103,7 @@ function parseDate(raw) {
   return now.toISOString()
 }
 
-function parseTransactions(text) {
+export function parseTransactions(text) {
   const seen = new Set()
   const results = []
 

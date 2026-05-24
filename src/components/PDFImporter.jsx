@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { parsePDF, handleBuffer } from '../utils/pdfParser'
+import { parsePDF } from '../utils/pdfParser'
 import { useStore } from '../store/useStore'
 import { CATEGORY_META } from '../utils/categorizer'
 
@@ -17,28 +17,28 @@ export default function PDFImporter({ onClose }) {
 
   useEffect(() => {
     if (!window.electronAPI) return
-    window.electronAPI.onPdfDetected(async ({ buffer, path }) => {
-      setPhase('parsing')
+    // Main process parses the PDF and sends back transactions (or an error string)
+    window.electronAPI.onPdfDetected(({ txs, error, path }) => {
       setError(null)
-      try {
-        const parsed = await handleBuffer(buffer)
-        if (parsed.length === 0) {
-          setError(`No transactions found in ${path.split('/').pop() || path}. Make sure it's a credit card or bank statement.`)
-          setPhase('drop')
-          return
-        }
-        setTxs(parsed)
-        setSelected(new Set(parsed.map(t => t.id)))
-        setPhase('review')
-      } catch (e) {
-        console.error('[PDFImporter] auto-detect parse error:', e)
-        if (e.message === 'IMAGE_BASED') {
+      if (error) {
+        const name = path ? path.split('/').pop() : 'PDF'
+        if (error === 'IMAGE_BASED') {
           setError('This PDF appears to be image-based (scanned). Please download your statement from your bank\'s website — choose the digital/text PDF option, not a scanned copy.')
         } else {
-          setError(`Could not parse auto-detected PDF: ${e.message || 'unknown error'}`)
+          setError(`Could not parse ${name}: ${error}`)
         }
         setPhase('drop')
+        return
       }
+      if (!txs || txs.length === 0) {
+        const name = path ? path.split('/').pop() : 'the file'
+        setError(`No transactions found in ${name}. Make sure it's a credit card or bank statement.`)
+        setPhase('drop')
+        return
+      }
+      setTxs(txs)
+      setSelected(new Set(txs.map(t => t.id)))
+      setPhase('review')
     })
     return () => window.electronAPI.offPdfDetected()
   }, [])

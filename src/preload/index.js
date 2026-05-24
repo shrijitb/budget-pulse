@@ -14,6 +14,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('pdf-detected')
   },
 
+  // Parse a PDF in the main process (no browser worker — much faster)
+  parsePdf: (buffer) => ipcRenderer.invoke('parse-pdf', buffer),
+
   // Fire native OS notification via main process
   showNotification: (title, body) => {
     ipcRenderer.send('show-notification', { title, body })

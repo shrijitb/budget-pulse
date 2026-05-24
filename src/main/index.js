@@ -2,6 +2,33 @@ import { app, BrowserWindow, ipcMain, dialog, Notification } from 'electron'
 import { join } from 'path'
 import chokidar from 'chokidar'
 import { readFile } from 'fs/promises'
+import { parseTransactions, extractText } from '../utils/pdfParser.js'
+
+let pdfjsLib = null
+async function getMainPdfjs() {
+  if (pdfjsLib) return pdfjsLib
+  // Dynamic import keeps ESM pdfjs external (not bundled). In Node.js (no `window`),
+  // pdfjs auto-detects the environment and runs without a web worker.
+  const mod = await import('pdfjs-dist')
+  mod.GlobalWorkerOptions.workerSrc = ''
+  pdfjsLib = mod
+  return mod
+}
+
+async function parsePdfBuffer(buffer) {
+  const pdfjs = await getMainPdfjs()
+  const data = buffer instanceof Buffer ? buffer : Buffer.from(buffer)
+  const pdf = await pdfjs.getDocument({
+    data: new Uint8Array(data),
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    disableRange: true,
+    disableStream: true,
+  }).promise
+  const text = await extractText(pdf)
+  if (text.trim().length < 80) throw new Error('IMAGE_BASED')
+  return parseTransactions(text)
+}
 
 // Required on Linux: AppImage chrome-sandbox is not setuid root
 if (process.platform === 'linux') {
@@ -46,7 +73,12 @@ function setupIPC() {
     return result.canceled ? null : result.filePaths[0]
   })
 
-  // Start watching a folder for new PDFs
+  // Parse a PDF buffer in the main process (no browser worker needed)
+  ipcMain.handle('parse-pdf', async (_event, buffer) => {
+    return parsePdfBuffer(buffer)
+  })
+
+  // Start watching a folder for new PDFs — parse in main, send transactions to renderer
   ipcMain.handle('watch-folder', async (_event, folderPath) => {
     if (typeof folderPath !== 'string') return false
     if (watcher) await watcher.close()
@@ -59,12 +91,11 @@ function setupIPC() {
       if (!filePath.toLowerCase().endsWith('.pdf')) return
       try {
         const buffer = await readFile(filePath)
-        mainWindow.webContents.send('pdf-detected', {
-          path: filePath,
-          buffer: buffer.buffer,
-        })
+        const txs = await parsePdfBuffer(buffer)
+        mainWindow.webContents.send('pdf-detected', { txs, path: filePath })
       } catch (err) {
-        console.error('Failed to read PDF from watched folder:', err)
+        console.error('Failed to parse PDF from watched folder:', err)
+        mainWindow.webContents.send('pdf-detected', { error: err.message, path: filePath })
       }
     })
     return true
