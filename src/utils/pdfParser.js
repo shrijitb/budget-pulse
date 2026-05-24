@@ -10,12 +10,29 @@ async function getPdfjs() {
   return mod
 }
 
+// Reconstruct reading-order text from column-based PDFs (bank statements).
+// Groups items by Y position, then sorts within each row by X — critical for
+// tabular layouts where pdfjs returns items in column order instead of row order.
 async function extractText(pdf) {
   let fullText = ''
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i)
     const content = await page.getTextContent()
-    fullText += content.items.map(item => item.str).join(' ') + '\n'
+
+    const rows = {}
+    for (const item of content.items) {
+      const str = item.str
+      if (!str || !str.trim()) continue
+      const y = Math.round(item.transform[5] / 4) * 4
+      if (!rows[y]) rows[y] = []
+      rows[y].push({ x: item.transform[4], text: str })
+    }
+
+    const sortedRows = Object.entries(rows)
+      .sort((a, b) => Number(b[0]) - Number(a[0]))
+      .map(([, items]) => items.sort((a, b) => a.x - b.x).map(i => i.text).join(' '))
+
+    fullText += sortedRows.join('\n') + '\n'
   }
   return fullText
 }
@@ -24,23 +41,33 @@ export async function parsePDF(file) {
   const pdfjs = await getPdfjs()
   const buffer = await file.arrayBuffer()
   const pdf = await pdfjs.getDocument({ data: buffer }).promise
-  return parseTransactions(await extractText(pdf))
+  const text = await extractText(pdf)
+  if (text.trim().length < 80) {
+    throw new Error('IMAGE_BASED')
+  }
+  return parseTransactions(text)
 }
 
 export async function handleBuffer(buffer) {
   const pdfjs = await getPdfjs()
   const pdf = await pdfjs.getDocument({ data: buffer }).promise
-  return parseTransactions(await extractText(pdf))
+  const text = await extractText(pdf)
+  if (text.trim().length < 80) {
+    throw new Error('IMAGE_BASED')
+  }
+  return parseTransactions(text)
 }
 
 // Patterns for common credit card statement formats
 const TX_PATTERNS = [
-  // Chase: "01/15 01/17 MERCHANT NAME 123.45"
-  /(\d{2}\/\d{2})\s+\d{2}\/\d{2}\s+([A-Z][^\d]{3,40?})\s+([\d,]+\.\d{2})/g,
+  // Chase / BofA: "01/15 01/17 MERCHANT NAME 123.45"
+  /(\d{2}\/\d{2})\s+\d{2}\/\d{2}\s+([A-Za-z][^\d\n$]{2,45?}?)\s+([\d,]+\.\d{2})(?:\s|$)/g,
   // Amex: "01/15/2024 MERCHANT NAME $123.45"
-  /(\d{2}\/\d{2}\/\d{4})\s+([A-Z][^\d$]{3,40?})\s+\$?([\d,]+\.\d{2})/g,
-  // Generic: date merchant amount
-  /(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s+([A-Za-z][^$\d\n]{4,45?}?)\s+\$?\s*([\d,]+\.\d{2})/g,
+  /(\d{2}\/\d{2}\/\d{4})\s+([A-Za-z][^\d$\n]{2,45?}?)\s+\$?([\d,]+\.\d{2})(?:\s|$)/g,
+  // BofA single-date: "01/15 MERCHANT NAME 123.45"
+  /(\d{2}\/\d{2})\s+([A-Za-z][A-Za-z0-9 &'.,*#-]{2,45?}?)\s+([\d,]+\.\d{2})(?:\s|$)/g,
+  // Generic with optional $: date merchant amount
+  /(\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\s+([A-Za-z][^$\d\n]{3,45?}?)\s+\$?\s*([\d,]+\.\d{2})(?:\s|$)/g,
 ]
 
 function parseDate(raw) {
@@ -70,7 +97,7 @@ function parseTransactions(text) {
       const name = merchant.trim().replace(/\s+/g, ' ')
       if (name.length < 3) continue
 
-      const key = `${rawDate}|${name}|${amount}`
+      const key = `${rawDate}|${name.toLowerCase()}|${amount}`
       if (seen.has(key)) continue
       seen.add(key)
 
@@ -85,6 +112,5 @@ function parseTransactions(text) {
     }
   }
 
-  // Deduplicate further by proximity
   return results.slice(0, 200)
 }

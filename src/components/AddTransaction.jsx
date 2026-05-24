@@ -13,15 +13,21 @@ export default function AddTransaction({ onClose }) {
   const [amount, setAmount] = useState('')
   const [category, setCategory] = useState('food')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
+  const [otherDesc, setOtherDesc] = useState('')
 
   function submit(e) {
     e.preventDefault()
     const amt = parseFloat(amount)
     if (!amt || amt <= 0) return
+    if (category === 'other' && !otherDesc.trim()) return
+
+    const resolvedMerchant = category === 'other'
+      ? `Other: ${otherDesc.trim()}`
+      : merchant.trim() || 'Manual entry'
 
     const newTx = {
       id: `tx_${Date.now()}`,
-      merchant: merchant.trim() || 'Manual entry',
+      merchant: resolvedMerchant,
       amount: amt,
       category,
       date: new Date(date).toISOString(),
@@ -38,7 +44,7 @@ export default function AddTransaction({ onClose }) {
     const projectedTotal = weekTotals[category] || 0
     const nextTotal = projectedTotal + amt
 
-    if (inCurrentWeek && category !== 'savings' && nextTotal > state.budgets[category]) {
+    if (inCurrentWeek && category !== 'savings' && category !== 'studentLoans' && nextTotal > (state.budgets[category] || 0)) {
       const meta = CATEGORY_META[category]
       window.electronAPI?.showNotification(
         `Over budget: ${meta?.label || category}`,
@@ -49,6 +55,7 @@ export default function AddTransaction({ onClose }) {
     setMerchant('')
     setAmount('')
     setCategory('food')
+    setOtherDesc('')
     setDate(new Date().toISOString().slice(0, 10))
     onClose()
   }
@@ -90,13 +97,30 @@ export default function AddTransaction({ onClose }) {
             />
           </div>
 
-          <input
-            type="text"
-            placeholder="Merchant / description"
-            value={merchant}
-            onChange={e => setMerchant(e.target.value)}
-            className="input-field w-full"
-          />
+          {category === 'other' ? (
+            <input
+              type="text"
+              placeholder="Describe this expense (required)"
+              value={otherDesc}
+              onChange={e => setOtherDesc(e.target.value)}
+              className="input-field w-full"
+              required
+            />
+          ) : (
+            <input
+              type="text"
+              placeholder={category === 'studentLoans' ? 'Loan servicer (e.g. Mohela, Navient)' : 'Merchant / description'}
+              value={merchant}
+              onChange={e => setMerchant(e.target.value)}
+              className="input-field w-full"
+            />
+          )}
+
+          {category === 'studentLoans' && (
+            <p className="text-xs text-[var(--color-text-muted)] -mt-1 px-1">
+              🎓 Monthly loan payment — track each payment when it posts.
+            </p>
+          )}
 
           <input
             type="date"
@@ -110,7 +134,7 @@ export default function AddTransaction({ onClose }) {
               <button
                 key={cat.id}
                 type="button"
-                onClick={() => setCategory(cat.id)}
+                onClick={() => { setCategory(cat.id); setOtherDesc('') }}
                 className="flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-xs transition-all"
                 style={{
                   background: category === cat.id ? `${cat.color}25` : 'var(--color-surface-3)',
@@ -124,7 +148,11 @@ export default function AddTransaction({ onClose }) {
             ))}
           </div>
 
-          <button type="submit" className="btn-primary w-full">
+          <button
+            type="submit"
+            disabled={category === 'other' && !otherDesc.trim()}
+            className="btn-primary w-full disabled:opacity-40"
+          >
             Save transaction
           </button>
         </form>

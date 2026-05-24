@@ -6,15 +6,19 @@ const DEFAULT_BUDGETS = {
   food: 150,
   transport: 75,
   entertainment: 50,
+  subscriptions: 50,
   shopping: 75,
   bigPurchases: 50,
   savings: 150,
+  studentLoans: 0,
+  other: 0,
 }
 
 const DEFAULT_STATE = {
   setup: false,
   weeklyIncome: 725,
   budgets: DEFAULT_BUDGETS,
+  monthlyStudentLoan: 0,
   transactions: [],
   goals: [],
   weeklyHistory: [],
@@ -53,7 +57,16 @@ function save(state) {
 function reducer(state, action) {
   switch (action.type) {
     case 'COMPLETE_SETUP':
-      return { ...state, setup: true, weeklyIncome: action.income, budgets: action.budgets }
+      return {
+        ...state,
+        setup: true,
+        weeklyIncome: action.income,
+        budgets: action.budgets,
+        monthlyStudentLoan: action.monthlyStudentLoan ?? state.monthlyStudentLoan,
+      }
+
+    case 'SET_MONTHLY_STUDENT_LOAN':
+      return { ...state, monthlyStudentLoan: action.amount }
 
     case 'ADD_TRANSACTION':
       return { ...state, transactions: [action.tx, ...state.transactions] }

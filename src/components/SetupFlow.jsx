@@ -15,6 +15,7 @@ export default function SetupFlow() {
   const [step, setStep] = useState(0)
   const [income, setIncome] = useState(725)
   const [budgets, setBudgets] = useState(() => getRecommendations(725))
+  const [monthlyStudentLoan, setMonthlyStudentLoan] = useState(0)
   const [firstGoal, setFirstGoal] = useState({ name: '', target: '' })
 
   function recalc(newIncome) {
@@ -23,7 +24,10 @@ export default function SetupFlow() {
   }
 
   function finish() {
-    dispatch({ type: 'COMPLETE_SETUP', income, budgets })
+    dispatch({ type: 'COMPLETE_SETUP', income, budgets, monthlyStudentLoan })
+    if (monthlyStudentLoan > 0) {
+      dispatch({ type: 'SET_MONTHLY_STUDENT_LOAN', amount: monthlyStudentLoan })
+    }
     if (firstGoal.name && Number(firstGoal.target) > 0) {
       dispatch({
         type: 'ADD_GOAL',
@@ -43,6 +47,7 @@ export default function SetupFlow() {
     <StepWelcome key="welcome" onNext={() => setStep(1)} />,
     <StepIncome key="income" income={income} onChange={recalc} onNext={() => setStep(2)} />,
     <StepBudgets key="budgets" income={income} budgets={budgets} onChange={setBudgets} onNext={() => setStep(3)} />,
+    <StepStudentLoan key="loans" monthlyStudentLoan={monthlyStudentLoan} onChange={setMonthlyStudentLoan} onNext={() => setStep(4)} />,
     <StepGoal key="goal" goal={firstGoal} onChange={setFirstGoal} onFinish={finish} />,
   ]
 
@@ -120,6 +125,7 @@ const BUDGET_LABELS = {
   food: { label: 'Food', icon: '🍔' },
   transport: { label: 'Transport', icon: '🚗' },
   entertainment: { label: 'Entertainment', icon: '🎬' },
+  subscriptions: { label: 'Subscriptions', icon: '📱' },
   shopping: { label: 'Shopping', icon: '🛍️' },
   bigPurchases: { label: 'Big Purchases', icon: '✈️' },
   savings: { label: 'Savings', icon: '💰' },
@@ -172,6 +178,57 @@ function StepBudgets({ income, budgets, onChange, onNext }) {
       <button onClick={onNext} className="btn-primary w-full">
         Set first goal →
       </button>
+    </div>
+  )
+}
+
+function StepStudentLoan({ monthlyStudentLoan, onChange, onNext }) {
+  const [inputVal, setInputVal] = useState(monthlyStudentLoan > 0 ? String(monthlyStudentLoan) : '')
+
+  function handleNext() {
+    const amt = parseFloat(inputVal)
+    onChange(isNaN(amt) ? 0 : Math.max(0, amt))
+    onNext()
+  }
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-2xl font-bold text-[var(--color-text-bright)] mb-2">Student loans</h2>
+        <p className="text-[var(--color-text-muted)]">
+          Do you make monthly student loan payments? We'll track them separately so they don't inflate your weekly spending.
+        </p>
+      </div>
+      <div className="glass rounded-xl p-6 space-y-3">
+        <p className="text-sm font-medium text-[var(--color-text-bright)]">Monthly payment amount</p>
+        <div className="relative">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)]">$</span>
+          <input
+            type="number"
+            min="0"
+            step="1"
+            placeholder="e.g. 350"
+            value={inputVal}
+            onChange={e => setInputVal(e.target.value)}
+            className="input-field w-full pl-9 text-2xl font-bold"
+            autoFocus
+          />
+        </div>
+        <p className="text-xs text-[var(--color-text-muted)]">
+          Leave blank if you don't have student loans — you can set this later from the dashboard.
+        </p>
+      </div>
+      <div className="space-y-3">
+        <button onClick={handleNext} className="btn-primary w-full">
+          Set first goal →
+        </button>
+        <button
+          onClick={onNext}
+          className="w-full py-3 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+        >
+          Skip — no student loans
+        </button>
+      </div>
     </div>
   )
 }

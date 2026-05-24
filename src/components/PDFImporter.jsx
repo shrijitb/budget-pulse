@@ -23,15 +23,19 @@ export default function PDFImporter({ onClose }) {
       try {
         const parsed = await handleBuffer(buffer)
         if (parsed.length === 0) {
-          setError(`No transactions found in ${path.split('/').pop() || path}.`)
+          setError(`No transactions found in ${path.split('/').pop() || path}. Make sure it's a credit card or bank statement.`)
           setPhase('drop')
           return
         }
         setTxs(parsed)
         setSelected(new Set(parsed.map(t => t.id)))
         setPhase('review')
-      } catch {
-        setError('Could not parse the auto-detected PDF.')
+      } catch (e) {
+        if (e.message === 'IMAGE_BASED') {
+          setError('This PDF appears to be image-based (scanned). Please download your statement from your bank\'s website — choose the digital/text PDF option, not a scanned copy.')
+        } else {
+          setError('Could not parse the auto-detected PDF.')
+        }
         setPhase('drop')
       }
     })
@@ -56,7 +60,11 @@ export default function PDFImporter({ onClose }) {
       setSelected(new Set(parsed.map(t => t.id)))
       setPhase('review')
     } catch (e) {
-      setError('Could not parse this PDF. Try uploading a text-based statement.')
+      if (e.message === 'IMAGE_BASED') {
+        setError('This PDF is image-based (scanned). Download your statement from your bank\'s website as a digital PDF — Bank of America: Accounts → Statements & Documents → choose PDF.')
+      } else {
+        setError('Could not parse this PDF. Try a different statement format.')
+      }
       setPhase('drop')
     }
   }
@@ -127,7 +135,7 @@ export default function PDFImporter({ onClose }) {
                   <p className="font-semibold text-[var(--color-text-bright)]">Drop your statement here</p>
                   <p className="text-sm text-[var(--color-text-muted)]">or tap to select a PDF</p>
                   <p className="text-xs text-[var(--color-text-muted)] mt-2 px-6 text-center">
-                    Works with Chase, Amex, Citi, and most bank PDF statements
+                    Works with Bank of America, Chase, Amex, Citi, and most digital bank statements
                   </p>
                 </div>
                 <input

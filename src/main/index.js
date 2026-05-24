@@ -3,6 +3,11 @@ import { join } from 'path'
 import chokidar from 'chokidar'
 import { readFile } from 'fs/promises'
 
+// Required on Linux: AppImage chrome-sandbox is not setuid root
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('no-sandbox')
+}
+
 let mainWindow = null
 let watcher = null
 

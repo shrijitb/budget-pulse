@@ -21,6 +21,7 @@ export default function Dashboard({ onNavigate }) {
   const [showSpreadsheet, setShowSpreadsheet] = useState(false)
   const [showPDF, setShowPDF] = useState(false)
   const [quickMerchant, setQuickMerchant] = useState('')
+  const [quickOtherDesc, setQuickOtherDesc] = useState('')
   const [quickAmount, setQuickAmount] = useState('')
   const [quickCategory, setQuickCategory] = useState('food')
   const [quickDate, setQuickDate] = useState(new Date().toISOString().slice(0, 10))
@@ -52,10 +53,15 @@ export default function Dashboard({ onNavigate }) {
     e.preventDefault()
     const amt = parseFloat(quickAmount)
     if (!amt || amt <= 0) return
+    if (quickCategory === 'other' && !quickOtherDesc.trim()) return
+
+    const resolvedMerchant = quickCategory === 'other'
+      ? `Other: ${quickOtherDesc.trim()}`
+      : quickMerchant.trim() || 'Quick entry'
 
     const newTx = {
       id: `tx_${Date.now()}`,
-      merchant: quickMerchant.trim() || 'Quick entry',
+      merchant: resolvedMerchant,
       amount: amt,
       category: quickCategory,
       date: new Date(quickDate).toISOString(),
@@ -71,7 +77,7 @@ export default function Dashboard({ onNavigate }) {
 
     dispatch({ type: 'ADD_TRANSACTION', tx: newTx })
 
-    if (inCurrentWeek && quickCategory !== 'savings' && nextTotal > state.budgets[quickCategory]) {
+    if (inCurrentWeek && quickCategory !== 'savings' && quickCategory !== 'studentLoans' && nextTotal > (state.budgets[quickCategory] || 0)) {
       const meta = CATEGORY_META[quickCategory]
       window.electronAPI?.showNotification(
         `Over budget: ${meta?.label || quickCategory}`,
@@ -80,6 +86,7 @@ export default function Dashboard({ onNavigate }) {
     }
 
     setQuickMerchant('')
+    setQuickOtherDesc('')
     setQuickAmount('')
     setQuickCategory('food')
     setQuickDate(new Date().toISOString().slice(0, 10))
@@ -138,13 +145,24 @@ export default function Dashboard({ onNavigate }) {
           </div>
 
           <form onSubmit={handleQuickAdd} className="grid gap-3 md:grid-cols-[1.1fr_0.9fr_0.8fr]">
-            <input
-              type="text"
-              placeholder="Merchant / bill name"
-              value={quickMerchant}
-              onChange={e => setQuickMerchant(e.target.value)}
-              className="input-field w-full"
-            />
+            {quickCategory === 'other' ? (
+              <input
+                type="text"
+                placeholder="Describe this expense (required)"
+                value={quickOtherDesc}
+                onChange={e => setQuickOtherDesc(e.target.value)}
+                className="input-field w-full"
+                required
+              />
+            ) : (
+              <input
+                type="text"
+                placeholder={quickCategory === 'studentLoans' ? 'Loan servicer (e.g. Mohela)' : 'Merchant / bill name'}
+                value={quickMerchant}
+                onChange={e => setQuickMerchant(e.target.value)}
+                className="input-field w-full"
+              />
+            )}
             <input
               type="number"
               min="0"
@@ -157,7 +175,7 @@ export default function Dashboard({ onNavigate }) {
             <div className="grid gap-3 sm:grid-cols-2">
               <select
                 value={quickCategory}
-                onChange={e => setQuickCategory(e.target.value)}
+                onChange={e => { setQuickCategory(e.target.value); setQuickOtherDesc('') }}
                 className="input-field w-full"
               >
                 {Object.entries(CATEGORY_META).map(([key, meta]) => (
@@ -171,7 +189,11 @@ export default function Dashboard({ onNavigate }) {
                 className="input-field w-full"
               />
             </div>
-            <button type="submit" className="btn-primary w-full md:col-span-3">
+            <button
+              type="submit"
+              disabled={quickCategory === 'other' && !quickOtherDesc.trim()}
+              className="btn-primary w-full md:col-span-3 disabled:opacity-40"
+            >
               Add transaction
             </button>
           </form>
@@ -235,7 +257,7 @@ export default function Dashboard({ onNavigate }) {
           </div>
           <div className="grid gap-4">
             {Object.keys(state.budgets)
-              .filter(k => k !== 'savings')
+              .filter(k => k !== 'savings' && k !== 'studentLoans')
               .map(cat => (
                 <CategoryBar
                   key={cat}
@@ -247,21 +269,25 @@ export default function Dashboard({ onNavigate }) {
           </div>
         </div>
 
-        <div className="glass rounded-3xl px-6 py-5">
-          <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-3">Savings goal</p>
-          <CategoryBar
-            category="savings"
-            spent={categoryTotals.savings || 0}
-            budget={state.budgets.savings}
-          />
-          {topGoal && (
-            <button
-              onClick={() => onNavigate('goals')}
-              className="mt-5 w-full btn-secondary text-sm"
-            >
-              View goals
-            </button>
-          )}
+        <div className="glass rounded-3xl px-6 py-5 space-y-4">
+          <div>
+            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest mb-3">Savings goal</p>
+            <CategoryBar
+              category="savings"
+              spent={categoryTotals.savings || 0}
+              budget={state.budgets.savings}
+            />
+            {topGoal && (
+              <button
+                onClick={() => onNavigate('goals')}
+                className="mt-5 w-full btn-secondary text-sm"
+              >
+                View goals
+              </button>
+            )}
+          </div>
+
+          <StudentLoanCard state={state} dispatch={dispatch} />
         </div>
       </div>
 
@@ -368,6 +394,100 @@ function FolderWatcherRow() {
       <button onClick={pickFolder} className="btn-secondary text-xs px-3 py-1.5 shrink-0">
         {folder ? 'Change' : 'Set folder'}
       </button>
+    </div>
+  )
+}
+
+function StudentLoanCard({ state, dispatch }) {
+  const [editing, setEditing] = useState(false)
+  const [inputVal, setInputVal] = useState(String(state.monthlyStudentLoan || ''))
+
+  const monthly = state.monthlyStudentLoan || 0
+
+  // Sum all studentLoans transactions in the current calendar month
+  const now = new Date()
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 1)
+  const paidThisMonth = state.transactions
+    .filter(t => t.category === 'studentLoans')
+    .filter(t => { const d = new Date(t.date); return d >= monthStart && d < monthEnd })
+    .reduce((s, t) => s + t.amount, 0)
+
+  const isPaid = monthly > 0 && paidThisMonth >= monthly * 0.9
+  const progress = monthly > 0 ? Math.min(1, paidThisMonth / monthly) : 0
+
+  function saveAmount() {
+    const amt = parseFloat(inputVal)
+    dispatch({ type: 'SET_MONTHLY_STUDENT_LOAN', amount: isNaN(amt) ? 0 : Math.max(0, amt) })
+    setEditing(false)
+  }
+
+  if (monthly === 0 && !editing) {
+    return (
+      <div
+        className="rounded-2xl px-4 py-3 flex items-center gap-3 cursor-pointer"
+        style={{ background: 'var(--color-surface-3)', border: '1px dashed var(--color-border)' }}
+        onClick={() => { setInputVal(''); setEditing(true) }}
+      >
+        <span className="text-xl">🎓</span>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-[var(--color-text-bright)]">Track Student Loans</p>
+          <p className="text-xs text-[var(--color-text-muted)]">Tap to set your monthly payment</p>
+        </div>
+        <span className="text-[var(--color-text-muted)] text-sm">+</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="rounded-2xl px-4 py-3 space-y-2" style={{ background: 'var(--color-surface-3)' }}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="text-lg">🎓</span>
+          <div>
+            <p className="text-xs text-[var(--color-text-muted)] uppercase tracking-widest">Student Loans</p>
+            <p className="text-sm font-semibold text-[var(--color-text-bright)]">
+              {isPaid ? '✅ Paid this month' : `$${paidThisMonth.toFixed(0)} / $${monthly.toFixed(0)}`}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={() => { setInputVal(String(monthly)); setEditing(v => !v) }}
+          className="text-xs text-[var(--color-text-muted)] hover:text-[var(--color-text)] px-2 py-1 rounded-lg"
+          style={{ background: 'var(--color-surface-2)' }}
+        >
+          Edit
+        </button>
+      </div>
+
+      {editing && (
+        <div className="flex gap-2 items-center">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] text-sm">$</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              placeholder="Monthly payment"
+              value={inputVal}
+              onChange={e => setInputVal(e.target.value)}
+              className="input-field w-full pl-7 text-sm"
+              autoFocus
+              onKeyDown={e => e.key === 'Enter' && saveAmount()}
+            />
+          </div>
+          <button onClick={saveAmount} className="btn-primary text-xs px-3 py-2">Save</button>
+        </div>
+      )}
+
+      {!editing && monthly > 0 && (
+        <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--color-surface-2)' }}>
+          <div
+            className="h-full rounded-full transition-all"
+            style={{ width: `${progress * 100}%`, background: isPaid ? 'var(--color-green)' : '#60a5fa' }}
+          />
+        </div>
+      )}
     </div>
   )
 }

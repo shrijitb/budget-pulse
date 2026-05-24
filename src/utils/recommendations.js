@@ -1,12 +1,15 @@
 export function getRecommendations(weeklyIncome) {
   const w = weeklyIncome
   return {
-    food: Math.round(w * 0.21),
+    food: Math.round(w * 0.20),
     transport: Math.round(w * 0.10),
-    entertainment: Math.round(w * 0.07),
+    entertainment: Math.round(w * 0.05),
+    subscriptions: Math.round(w * 0.04),
     shopping: Math.round(w * 0.10),
-    bigPurchases: Math.round(w * 0.07),
-    savings: Math.round(w * 0.21),
+    bigPurchases: Math.round(w * 0.06),
+    savings: Math.round(w * 0.20),
+    studentLoans: 0,
+    other: 0,
   }
 }
 
