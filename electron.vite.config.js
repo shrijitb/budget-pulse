@@ -7,7 +7,7 @@ export default defineConfig({
   main: {
     build: {
       rollupOptions: {
-        external: ['electron', 'pdfjs-dist'],
+        external: (id) => id === 'electron' || id.startsWith('pdfjs-dist'),
         input: {
           index: resolve(__dirname, 'src/main/index.js'),
         },

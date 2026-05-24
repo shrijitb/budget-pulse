@@ -1,16 +1,22 @@
 import { app, BrowserWindow, ipcMain, dialog, Notification } from 'electron'
 import { join } from 'path'
+import { createRequire } from 'module'
 import chokidar from 'chokidar'
 import { readFile } from 'fs/promises'
 import { parseTransactions, extractText } from '../utils/pdfParser.js'
 
+const _require = createRequire(import.meta.url)
+
 let pdfjsLib = null
 async function getMainPdfjs() {
   if (pdfjsLib) return pdfjsLib
-  // Dynamic import keeps ESM pdfjs external (not bundled). In Node.js (no `window`),
-  // pdfjs auto-detects the environment and runs without a web worker.
-  const mod = await import('pdfjs-dist')
-  mod.GlobalWorkerOptions.workerSrc = ''
+  // Use the legacy build — pdfjs-dist itself recommends this for Node.js environments.
+  // The browser build references DOMMatrix at module level which doesn't exist in Node.js.
+  const mod = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  // Resolve the matching legacy worker so pdfjs can run extraction off the main thread.
+  // createRequire resolves inside the asar transparently in packaged Electron builds.
+  const workerPath = _require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')
+  mod.GlobalWorkerOptions.workerSrc = new URL(`file://${workerPath}`).toString()
   pdfjsLib = mod
   return mod
 }
