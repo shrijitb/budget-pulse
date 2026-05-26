@@ -13,9 +13,11 @@ async function getMainPdfjs() {
   // Use the legacy build — pdfjs-dist itself recommends this for Node.js environments.
   // The browser build references DOMMatrix at module level which doesn't exist in Node.js.
   const mod = await import('pdfjs-dist/legacy/build/pdf.mjs')
-  // Resolve the matching legacy worker so pdfjs can run extraction off the main thread.
-  // createRequire resolves inside the asar transparently in packaged Electron builds.
+  // Resolve the worker file. In a packaged app the file lives inside app.asar, but
+  // worker_threads.Worker cannot load from asar. electron-builder unpacks it to
+  // app.asar.unpacked/ — redirect the path there so the OS can open it directly.
   const workerPath = _require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')
+    .replace(/\.asar(?!\.unpacked)([\\/])/, '.asar.unpacked$1')
   mod.GlobalWorkerOptions.workerSrc = new URL(`file://${workerPath}`).toString()
   pdfjsLib = mod
   return mod

@@ -28,3 +28,7 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
+# worker_threads.Worker cannot load files from inside an asar archive.
+# Unpack the pdfjs legacy worker so Node.js can spawn it as a real file.
+asarUnpack:
+  - "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs"
