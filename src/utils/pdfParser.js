@@ -35,6 +35,32 @@ export async function parsePDF(file) {
   return window.electronAPI.parsePdf(buffer)
 }
 
+// ── Merchant name cleanup ────────────────────────────────────────────────────
+// BoA appends payment-processor domains, order refs, phone numbers, and the
+// state code to merchant descriptions. Strip them so the display name is clean.
+const _ORDER_REF     = /\*[A-Z0-9]{4,}/g
+// All-caps .COM domains appended by BoA (GETSQUIRE.COMNY, ANTHROPIC.COMCA).
+// Intentionally excludes mixed-case brands like "CLAUDE.AI".
+const _APPENDED_COM  = /\b[A-Z0-9]{2,}\.COM[A-Z]{0,2}\b/g
+// Mixed-case URL paths pasted after the merchant (Amzn.com/billWA).
+const _URL_PATH      = /\b[A-Za-z0-9]+\.(?:com|net|org|io)\/\S*/gi
+// Phone numbers: 703-3767036 | 844-646-2746 | 888 432-3299
+const _PHONE         = /\b\d{3}[\s-]\d{3,7}(?:-\d{4})?\b/g
+// Trailing US state code — explicit list so "CO" (Company) is never stripped.
+const _TRAIL_STATE   = /\s+(?:AL|AK|AZ|AR|CA|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\s*$/
+
+function cleanMerchant(raw) {
+  return raw
+    .replace(_ORDER_REF, '')
+    .replace(_APPENDED_COM, '')
+    .replace(_URL_PATH, '')
+    .replace(_PHONE, '')
+    .replace(_TRAIL_STATE, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+}
+
+// ── Line-by-line transaction parser ─────────────────────────────────────────
 // Anchored patterns applied per-line — no backtracking possible.
 // Date at start, amount at end, merchant is everything in between.
 const LEAD_DATE = /^(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?)\s+/
@@ -117,12 +143,13 @@ export function parseTransactions(text) {
     if (seen.has(key)) continue
     seen.add(key)
 
+    const merchant = cleanMerchant(tx.merchant)
     results.push({
       id: `pdf_${Date.now()}_${results.length}`,
       date: parseDate(tx.rawDate),
-      merchant: tx.merchant,
+      merchant,
       amount: tx.amount,
-      category: categorize(tx.merchant),
+      category: categorize(merchant),
       source: 'pdf',
     })
 

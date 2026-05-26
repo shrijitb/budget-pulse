@@ -30,6 +30,8 @@ const KEYWORD_MAP = {
     'walmart grocery', 'costco food', 'bakery', 'deli', 'taco', 'panda', 'kfc',
     'chick-fil-a', 'wendy', 'dunkin', 'tim horton', 'panera', 'domino', 'papa john',
     'food', 'dining', 'eat', 'lunch', 'dinner', 'breakfast', 'brunch',
+    'supermarket', 'supermar', 'supercenter', 'grocery', 'market',
+    'indian', 'desi', 'ethnic grocery',
   ],
   transport: [
     'uber', 'lyft', 'taxi', 'metro', 'mta', 'bart', 'cta', 'amtrak',
@@ -53,6 +55,9 @@ const KEYWORD_MAP = {
     'adobe', 'microsoft 365', 'office 365', 'google one', 'icloud',
     'dropbox', 'notion', 'figma', 'github', 'chatgpt', 'openai',
     'subscription', 'monthly plan', 'annual plan', 'membership',
+    'ovh', 'digitalocean', 'linode', 'vultr', 'cloudflare', 'hosting',
+    'active n fit', 'activefit', 'silver sneakers', 'fit direct',
+    'anthropic', 'claude',
   ],
   shopping: [
     'amazon', 'target', 'walmart', 'best buy', 'apple store', 'ikea', 'h&m', 'zara',
